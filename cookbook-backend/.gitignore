@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Local data, not source
+documents/*
+!documents/.gitkeep
+vector_db/*
+!vector_db/.gitkeep

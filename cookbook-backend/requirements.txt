@@ -1,0 +1,8 @@
+fastapi[standard]>=0.115
+pydantic-settings>=2.4
+sqlmodel>=0.0.22
+psycopg[binary]>=3.2
+pinecone>=5.0
+google-genai>=1.0
+pypdf>=5.0
+python-multipart>=0.0.9
