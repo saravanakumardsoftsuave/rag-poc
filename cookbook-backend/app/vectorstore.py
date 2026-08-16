@@ -1,8 +1,13 @@
+import logging
+
+# pyrefly: ignore [missing-import]
 from pinecone import Pinecone, ServerlessSpec
 from google import genai
 from google.genai import types
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 _pinecone_client: Pinecone | None = None
 _gemini_client: genai.Client | None = None
@@ -73,7 +78,7 @@ def upsert_chunks(chunks: list[dict]) -> None:
     get_index().upsert(vectors=vectors)
 
 
-def similarity_search(query: str, k: int = 4) -> list[dict]:
+def similarity_search(query: str, k: int = 10) -> list[dict]:
     query_embedding = embed_texts([query], "RETRIEVAL_QUERY")[0]
     result = get_index().query(vector=query_embedding, top_k=k, include_metadata=True)
     return [
@@ -84,3 +89,19 @@ def similarity_search(query: str, k: int = 4) -> list[dict]:
         }
         for match in result["matches"]
     ]
+
+
+def delete_chunks_by_source(source: str) -> None:
+    try:
+        pc = get_pinecone_client()
+        existing = {index.name for index in pc.list_indexes()}
+        if settings.pinecone_index_name not in existing:
+            return
+        index = get_index()
+        if source == "documents/":
+            index.delete(delete_all=True)
+        else:
+            index.delete(filter={"source": source})
+    except Exception:
+        logger.exception("Pinecone vector deletion failed for source '%s'", source)
+

@@ -10,6 +10,10 @@ from app.prompt import build_prompt
 from app.vectorstore import similarity_search, upsert_chunks
 
 _client: genai.Client | None = None
+NO_RELEVANT_ANSWER = (
+    "I couldn't find that detail in the uploaded document. "
+    "Please ask about information covered by your uploaded file."
+)
 
 
 def get_gemini_client() -> genai.Client:
@@ -25,7 +29,7 @@ def generate_answer(prompt: str) -> str:
     response = get_gemini_client().models.generate_content(
         model=settings.gemini_generation_model,
         contents=prompt,
-        config=types.GenerateContentConfig(temperature=0.2, max_output_tokens=512),
+        config=types.GenerateContentConfig(max_output_tokens=4096),
     )
     return (response.text or "I couldn't generate an answer from the supplied cookbook context.").strip()
 
@@ -54,9 +58,12 @@ def ingest_pdf(file_path: str, source_name: str) -> int:
     return _ingest(source_name, load_pdf(file_path))
 
 
-def answer_question(question: str, k: int = 4) -> dict:
+def answer_question(question: str, k: int = 100) -> dict:
     matches = similarity_search(question, k=k)
+    relevant_matches = [match for match in matches]
+    if not relevant_matches:
+        return {"answer": NO_RELEVANT_ANSWER, "sources": []}
     prompt = build_prompt(question, [match["text"] for match in matches])
     answer = generate_answer(prompt)
-    sources = sorted({match["source"] for match in matches})
+    sources = sorted({match["source"] for match in relevant_matches})
     return {"answer": answer, "sources": sources}

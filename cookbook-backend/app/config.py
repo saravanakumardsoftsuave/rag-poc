@@ -15,14 +15,13 @@ class Settings(BaseSettings):
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
 
-    # Google AI Studio API key. Keep this in .env; never expose it to the frontend.
+   
     gemini_api_key: str = ""
-    gemini_generation_model: str = "gemini-2.5-flash"
+    gemini_generation_model: str = "gemini-3.6-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
     gemini_embedding_dimensions: int = 1024
 
-    # Comma-separated browser origins allowed to call this API.
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175,http://localhost:5175/api,"
 
     documents_dir: str = "documents"
 

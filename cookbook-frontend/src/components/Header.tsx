@@ -13,16 +13,16 @@ export default function Header({ kitchenStatus, onClear, clearDisabled }: Header
         <div className="plate__mark">
           <BookSteamIcon className="plate__icon" />
           <div>
-            <h1 className="plate__title">Ask My Cookbook</h1>
-            <p className="plate__subtitle">Answers pulled from the cookbooks you file — nothing else.</p>
+            <h1 className="plate__title">Cookbook AI</h1>
+            <p className="plate__subtitle">Your private recipe assistant</p>
           </div>
         </div>
         <div className="plate__actions">
           <span className={`status status--${kitchenStatus}`} role="status">
             <span className="status__dot" aria-hidden="true" />
-            {kitchenStatus === "checking" && "Checking the kitchen…"}
-            {kitchenStatus === "online" && "Kitchen online"}
-            {kitchenStatus === "offline" && "Kitchen unreachable"}
+            {kitchenStatus === "checking" && "Connecting"}
+            {kitchenStatus === "online" && "Ready"}
+            {kitchenStatus === "offline" && "Offline"}
           </span>
           <button type="button" className="btn btn--ghost" onClick={onClear} disabled={clearDisabled}>
             <TrashIcon className="btn__icon" />

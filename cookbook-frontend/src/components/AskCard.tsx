@@ -6,7 +6,7 @@ interface AskCardProps {
   disabled: boolean;
 }
 
-const EXAMPLE = "How long should the lasagna rest before cutting?";
+const EXAMPLE = "Ask anything about your cookbooks";
 
 export default function AskCard({ onAsk, disabled }: AskCardProps) {
   const [question, setQuestion] = useState("");
@@ -16,12 +16,13 @@ export default function AskCard({ onAsk, disabled }: AskCardProps) {
     const trimmed = question.trim();
     if (!trimmed || disabled) return;
     onAsk(trimmed);
+    setQuestion("");
   }
 
   return (
     <section className="table" aria-label="Ask a question">
-      <p className="table__eyebrow">Ask</p>
-      <h2 className="table__title">What do you want to know?</h2>
+      <p className="table__eyebrow">Cookbook AI</p>
+      <h2 className="table__title">What’s on your mind today?</h2>
       <form className="ruled-field" onSubmit={handleSubmit}>
         <input
           type="text"
@@ -32,7 +33,7 @@ export default function AskCard({ onAsk, disabled }: AskCardProps) {
           className="ruled-field__input"
         />
         <button type="submit" className="btn btn--stamp" disabled={disabled || !question.trim()}>
-          {disabled ? "Asking…" : "Ask"}
+          <span className="ask-button-label">{disabled ? "Thinking…" : "Send"}</span>
           <SendIcon className="btn__icon" />
         </button>
       </form>
