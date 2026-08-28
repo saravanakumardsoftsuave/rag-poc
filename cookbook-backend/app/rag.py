@@ -3,11 +3,13 @@ import uuid
 from google import genai
 from google.genai import types
 
-from app.chunking import chunk_text
+from app.chunking import chunk_document
 from app.config import settings
-from app.loader import load_documents_dir, load_pdf
+from app.keyword import index_chunks
+from app.loader import load_documents_dir, load_file
 from app.prompt import build_prompt
-from app.vectorstore import similarity_search, upsert_chunks
+from app.retrieval import hybrid_search
+from app.vectorstore import upsert_chunks
 
 _client: genai.Client | None = None
 NO_RELEVANT_ANSWER = (
@@ -35,15 +37,15 @@ def generate_answer(prompt: str) -> str:
 
 
 def _ingest(source: str, text: str) -> int:
-    chunks = chunk_text(text)
+    chunks = chunk_document(text)
     if not chunks:
         return 0
-    upsert_chunks(
-        [
-            {"id": f"{source}-{i}-{uuid.uuid4().hex[:8]}", "text": chunk, "source": source}
-            for i, chunk in enumerate(chunks)
-        ]
-    )
+    records = [
+        {"id": f"{source}#{i}-{uuid.uuid4().hex[:8]}", "text": chunk, "source": source}
+        for i, chunk in enumerate(chunks)
+    ]
+    upsert_chunks(records)
+    index_chunks(records)
     return len(chunks)
 
 
@@ -54,12 +56,12 @@ def ingest_directory(directory: str | None = None) -> int:
     return total
 
 
-def ingest_pdf(file_path: str, source_name: str) -> int:
-    return _ingest(source_name, load_pdf(file_path))
+def ingest_file(file_path: str, source_name: str) -> int:
+    return _ingest(source_name, load_file(file_path, source_name))
 
 
-def answer_question(question: str, k: int = 100) -> dict:
-    matches = similarity_search(question, k=k)
+def answer_question(question: str, k: int | None = None) -> dict:
+    matches = hybrid_search(question, k=k)
     relevant_matches = [match for match in matches]
     if not relevant_matches:
         return {"answer": NO_RELEVANT_ANSWER, "sources": []}

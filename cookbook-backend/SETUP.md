@@ -11,7 +11,8 @@ cookbook-backend/
 │   ├── main.py         # FastAPI app, lifespan hook that runs init_db()
 │   ├── routes.py        # POST /upload, POST /ingest, POST /query, GET /health
 │   ├── rag.py            # get_llm() provider factory, ingest_*(), answer_question()
-│   ├── loader.py         # pypdf-based PDF text extraction
+│   ├── loader.py         # Text extraction for any document type
+│   ├── ocr.py            # Gemini transcription for images and scanned PDFs
 │   ├── chunking.py       # plain character-based chunker (no framework)
 │   ├── vectorstore.py    # raw OpenAI embeddings + raw Pinecone upsert/query
 │   ├── prompt.py         # plain system prompt + prompt string builder

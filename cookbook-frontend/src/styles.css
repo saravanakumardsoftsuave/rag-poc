@@ -945,3 +945,249 @@ body { background: #fff; color: var(--chat-ink); font-family: -apple-system, Bli
   .app--chat .layout--conversation .footnote { left: 0; width: 100%; }
   .app--chat .layout--conversation .answer__question { max-width: 88%; }
 }
+
+/* ---------- sidebar: chat history above the cookbook library ---------- */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.app--chat .sidebar {
+  position: fixed;
+  top: 64px;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  width: 260px;
+  gap: 0;
+  background: var(--chat-panel);
+  border-right: 1px solid var(--chat-line);
+}
+
+/* Inside the sidebar the library is a panel, not a fixed rail of its own. */
+.app--chat .sidebar .box {
+  position: static;
+  width: auto;
+  flex: 0 0 auto;
+  max-height: 46%;
+  padding: 14px 14px 18px;
+  border: 0;
+  border-top: 1px solid var(--chat-line);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  overflow-y: auto;
+}
+
+.sidebar__scrim {
+  display: none;
+}
+
+/* ---------- chat list ---------- */
+
+.chats {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 14px 10px 6px;
+}
+
+.chats__new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--chat-line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--chat-ink);
+  transition: background 120ms ease;
+}
+
+.chats__new:hover {
+  background: #f0f0f1;
+}
+
+.chats__new-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.chats__empty {
+  margin: 14px 4px 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--chat-muted);
+}
+
+.chats__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 14px;
+  padding-right: 2px;
+}
+
+.chats__group + .chats__group {
+  margin-top: 14px;
+}
+
+.chats__group-label {
+  margin: 0 0 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--chat-muted);
+}
+
+.chats__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chat-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 7px;
+  padding-right: 4px;
+  transition: background 120ms ease;
+}
+
+.chat-row:hover {
+  background: #ececee;
+}
+
+.chat-row--active {
+  background: #e4e4e6;
+}
+
+.chat-row__open {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.chat-row__title {
+  font-size: 0.8rem;
+  font-weight: 550;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-row__meta {
+  font-size: 0.68rem;
+  color: var(--chat-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-row__delete {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--chat-muted);
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.chat-row:hover .chat-row__delete,
+.chat-row--active .chat-row__delete,
+.chat-row__delete:focus-visible {
+  opacity: 1;
+}
+
+.chat-row__delete:hover {
+  color: var(--danger);
+  background: rgba(163, 53, 42, 0.1);
+}
+
+.chat-row__delete-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.thread__end {
+  height: 0;
+  scroll-margin-bottom: 170px;
+}
+
+/* Header menu button — only needed once the sidebar collapses. */
+.plate__menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  padding: 6px;
+  border: 1px solid var(--chat-line);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+}
+
+.plate__menu-icon {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 760px) {
+  .app--chat .sidebar {
+    width: 210px;
+  }
+}
+
+@media (max-width: 560px) {
+  .app--chat .sidebar {
+    width: 264px;
+    transform: translateX(-100%);
+    transition: transform 180ms ease;
+    box-shadow: 0 0 28px rgba(0, 0, 0, 0.18);
+  }
+
+  .app--chat .sidebar--open {
+    transform: translateX(0);
+  }
+
+  .app--chat .plate__menu {
+    display: inline-flex;
+  }
+
+  /* The library is hidden on its own at this width; in the drawer it stays. */
+  .app--chat .sidebar .box {
+    display: block;
+    max-height: 50%;
+  }
+
+  .sidebar__scrim--on {
+    display: block;
+    position: fixed;
+    inset: 64px 0 0;
+    z-index: 4;
+    background: rgba(0, 0, 0, 0.3);
+  }
+}

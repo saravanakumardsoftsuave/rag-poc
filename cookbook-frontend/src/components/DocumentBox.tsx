@@ -1,7 +1,17 @@
 import { useRef, useState } from "react";
 import type { CookbookDoc, UploadStatus } from "../types";
-import { relativeTime } from "../utils";
 import { CheckIcon, TrashIcon, UploadArrowIcon } from "./icons";
+
+const ACCEPTED_FILE_TYPES = [
+  ".pdf",
+  ".doc", ".docx", ".odt", ".rtf",
+  ".ppt", ".pptx", ".odp",
+  ".xls", ".xlsx", ".xlsm", ".ods", ".csv", ".tsv",
+  ".epub",
+  ".html", ".htm", ".xml", ".json",
+  ".txt", ".md", ".rst", ".log", ".yaml", ".yml",
+  ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic",
+].join(",");
 
 interface DocumentBoxProps {
   documents: CookbookDoc[];
@@ -20,7 +30,6 @@ export default function DocumentBox({ documents, status, progress, error, onUplo
   function handleFiles(files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
-    if (file.type !== "application/pdf") return;
     onUpload(file);
   }
 
@@ -55,7 +64,7 @@ export default function DocumentBox({ documents, status, progress, error, onUplo
         <input
           ref={inputRef}
           type="file"
-          accept="application/pdf"
+          accept={ACCEPTED_FILE_TYPES}
           className="filer__input"
           disabled={status === "uploading"}
           onChange={(e) => {
@@ -65,9 +74,9 @@ export default function DocumentBox({ documents, status, progress, error, onUplo
         />
         <UploadArrowIcon className="filer__icon" />
         <span className="filer__label">
-          {status === "uploading" ? `Uploading… ${progress}%` : "Add a cookbook"}
+          {status === "uploading" ? `Uploadingâ€¦ ${progress}%` : "Add a cookbook"}
         </span>
-        <span className="filer__hint">PDF files only</span>
+        <span className="filer__hint">Any document - PDF, Word, PowerPoint, Excel, images, and more</span>
         {status === "uploading" && (
           <span className="filer__bar">
             <span className="filer__bar-fill" style={{ width: `${progress}%` }} />
@@ -79,7 +88,7 @@ export default function DocumentBox({ documents, status, progress, error, onUplo
 
       {documents.length === 0 ? (
         <p className="box__empty">
-          Add a cookbook PDF to begin.
+          Add a document to begin.
         </p>
       ) : (
         <ul className="tabs">
@@ -89,10 +98,7 @@ export default function DocumentBox({ documents, status, progress, error, onUplo
                 {doc.filename.charAt(0).toUpperCase()}
               </span>
               <span className="tab__body">
-                <span className="tab__name">{doc.filename}</span>
-                <span className="tab__meta">
-                  {doc.chunksIndexed} chunks filed · {relativeTime(doc.filedAt)}
-                </span>
+                <span className="tab__name">{doc.filename}</span>
               </span>
               {onDelete && (
                 <button

@@ -12,6 +12,9 @@ class Settings(BaseSettings):
 
     pinecone_api_key: str = ""
     pinecone_index_name: str = "cookbook-rag"
+    pinecone_sparse_index_name: str = "cookbook-rag-sparse"
+    pinecone_sparse_model: str = "pinecone-sparse-english-v0"
+    pinecone_namespace: str = "documents"
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
 
@@ -20,6 +23,24 @@ class Settings(BaseSettings):
     gemini_generation_model: str = "gemini-3.6-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
     gemini_embedding_dimensions: int = 1024
+
+    ocr_enabled: bool = True
+    ocr_model: str = ""
+    ocr_max_bytes: int = 15_000_000
+    ocr_max_output_tokens: int = 8192
+
+    chunk_strategy: str = "recursive"
+    chunk_size: int = 1000
+    chunk_overlap: int = 150
+    chunk_buffer_size: int = 1
+    chunk_breakpoint_percentile: float = 90.0
+    chunk_max_chars: int = 1500
+    chunk_min_chars: int = 200
+
+    semantic_top_k: int = 50
+    keyword_top_k: int = 50
+    hybrid_top_k: int = 20
+    rrf_k: int = 60
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175,http://localhost:5175/api,"
 

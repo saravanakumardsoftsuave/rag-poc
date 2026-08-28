@@ -8,7 +8,9 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from app.database import ChatLog, DocumentRecord, SessionDep
-from app.rag import NO_RELEVANT_ANSWER, answer_question, ingest_directory, ingest_pdf
+from app.keyword import delete_chunks_by_source as delete_keyword_chunks
+from app.loader import SUPPORTED_EXTENSIONS, UnsupportedDocumentError
+from app.rag import NO_RELEVANT_ANSWER, answer_question, ingest_directory, ingest_file
 from app.vectorstore import delete_chunks_by_source
 
 router = APIRouter(tags=["rag"])
@@ -80,30 +82,42 @@ def ingest(session: SessionDep) -> IngestResponse:
 
 @router.post("/upload")
 async def upload(file: UploadFile, session: SessionDep) -> UploadResponse:
-    with NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+    filename = file.filename or "uploaded.txt"
+    with NamedTemporaryFile(suffix=Path(filename).suffix, delete=False) as tmp:
         shutil.copyfileobj(file.file, tmp)
         tmp_path = tmp.name
-    filename = file.filename or "uploaded.pdf"
     try:
         if Path(tmp_path).stat().st_size == 0:
             raise HTTPException(
                 status_code=422,
-                detail="The uploaded PDF is empty. Please choose a valid cookbook PDF and try again.",
+                detail="The uploaded file is empty. Please choose a valid document and try again.",
             )
-        chunk_count = ingest_pdf(tmp_path, filename)
+        chunk_count = ingest_file(tmp_path, filename)
+        if chunk_count == 0:
+            raise HTTPException(
+                status_code=422,
+                detail="No readable text was found in this document. Scanned images are not supported.",
+            )
     except HTTPException:
         raise
+    except UnsupportedDocumentError as exc:
+        raise HTTPException(status_code=415, detail=str(exc)) from None
     except Exception:
-        logger.exception("Cookbook upload failed for %s", filename)
+        logger.exception("Document upload failed for %s", filename)
         raise HTTPException(
             status_code=503,
-            detail="The cookbook could not be indexed right now. Please try again shortly.",
+            detail="The document could not be indexed right now. Please try again shortly.",
         ) from None
     finally:
         Path(tmp_path).unlink(missing_ok=True)
     session.add(DocumentRecord(filename=filename, chunk_count=chunk_count))
     session.commit()
     return UploadResponse(filename=filename, chunks_ingested=chunk_count)
+
+
+@router.get("/supported-formats")
+def supported_formats() -> dict[str, list[str]]:
+    return {"extensions": SUPPORTED_EXTENSIONS}
 
 
 @router.get("/documents", response_model=list[DocumentResponse])
@@ -130,6 +144,7 @@ def delete_document(document_id: int, session: SessionDep) -> DeleteDocumentResp
         raise HTTPException(status_code=404, detail="Document not found.")
 
     delete_chunks_by_source(record.filename)
+    delete_keyword_chunks(record.filename)
     session.delete(record)
     session.commit()
     return DeleteDocumentResponse(message="Document deleted successfully.", id=document_id)
