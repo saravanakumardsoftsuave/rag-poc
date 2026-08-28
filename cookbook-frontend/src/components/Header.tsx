@@ -1,15 +1,19 @@
-import { BookSteamIcon, TrashIcon } from "./icons";
+import { BookSteamIcon, MenuIcon, PlusIcon } from "./icons";
 
 interface HeaderProps {
   kitchenStatus: "checking" | "online" | "offline";
-  onClear: () => void;
-  clearDisabled: boolean;
+  onNewChat: () => void;
+  newChatDisabled: boolean;
+  onToggleSidebar: () => void;
 }
 
-export default function Header({ kitchenStatus, onClear, clearDisabled }: HeaderProps) {
+export default function Header({ kitchenStatus, onNewChat, newChatDisabled, onToggleSidebar }: HeaderProps) {
   return (
     <header className="plate">
       <div className="plate__inner">
+        <button type="button" className="plate__menu" onClick={onToggleSidebar} aria-label="Show chats and cookbooks">
+          <MenuIcon className="plate__menu-icon" />
+        </button>
         <div className="plate__mark">
           <BookSteamIcon className="plate__icon" />
           <div>
@@ -24,9 +28,9 @@ export default function Header({ kitchenStatus, onClear, clearDisabled }: Header
             {kitchenStatus === "online" && "Ready"}
             {kitchenStatus === "offline" && "Offline"}
           </span>
-          <button type="button" className="btn btn--ghost" onClick={onClear} disabled={clearDisabled}>
-            <TrashIcon className="btn__icon" />
-            Clear chat
+          <button type="button" className="btn btn--ghost" onClick={onNewChat} disabled={newChatDisabled}>
+            <PlusIcon className="btn__icon" />
+            New chat
           </button>
         </div>
       </div>

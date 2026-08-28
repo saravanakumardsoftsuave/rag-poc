@@ -83,6 +83,7 @@ def similarity_search(query: str, k: int = 10) -> list[dict]:
     result = get_index().query(vector=query_embedding, top_k=k, include_metadata=True)
     return [
         {
+            "id": match["id"],
             "text": match["metadata"]["text"],
             "source": match["metadata"].get("source", "unknown"),
             "score": match["score"],
