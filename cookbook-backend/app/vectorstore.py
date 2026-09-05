@@ -3,7 +3,7 @@ import logging
 # pyrefly: ignore [missing-import]
 from pinecone import Pinecone, ServerlessSpec
 from google import genai
-from google.genai import types
+from sentence_transformers import SentenceTransformer
 
 from app.config import settings
 
@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 _pinecone_client: Pinecone | None = None
 _gemini_client: genai.Client | None = None
+_embedding_model: SentenceTransformer | None = None
 
 
 def get_pinecone_client() -> Pinecone:
@@ -29,16 +30,16 @@ def get_gemini_client() -> genai.Client:
     return _gemini_client
 
 
+def get_embedding_model() -> SentenceTransformer:
+    global _embedding_model
+    if _embedding_model is None:
+        _embedding_model = SentenceTransformer(settings.hf_embedding_model)
+    return _embedding_model
+
+
 def embed_texts(texts: list[str], task_type: str) -> list[list[float]]:
-    response = get_gemini_client().models.embed_content(
-        model=settings.gemini_embedding_model,
-        contents=texts,
-        config=types.EmbedContentConfig(
-            task_type=task_type,
-            output_dimensionality=settings.gemini_embedding_dimensions,
-        ),
-    )
-    return [embedding.values for embedding in response.embeddings]
+    embeddings = get_embedding_model().encode(texts, normalize_embeddings=True)
+    return embeddings.tolist()
 
 
 def ensure_index(dimension: int) -> None:
@@ -49,7 +50,7 @@ def ensure_index(dimension: int) -> None:
         if index_dimension != dimension:
             raise RuntimeError(
                 f"Pinecone index '{settings.pinecone_index_name}' has dimension {index_dimension}, "
-                f"but Gemini returned {dimension}. Use a new index name and re-ingest the documents."
+                f"but the embedding model returned {dimension}. Use a new index name and re-ingest the documents."
             )
         return
     pc.create_index(

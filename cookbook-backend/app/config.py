@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     postgres_user: str = "postgres"
     postgres_password: str = ""
     postgres_db: str = "postgres"
+    postgres_sslmode: str = ""
 
     pinecone_api_key: str = ""
     pinecone_index_name: str = "cookbook-rag"
@@ -21,8 +22,20 @@ class Settings(BaseSettings):
    
     gemini_api_key: str = ""
     gemini_generation_model: str = "gemini-3.6-flash"
-    gemini_embedding_model: str = "gemini-embedding-001"
-    gemini_embedding_dimensions: int = 1024
+
+    hf_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    hf_generation_model: str = "Qwen/Qwen2.5-1.5B-Instruct"
+    hf_generation_max_new_tokens: int = 512
+
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    rerank_candidate_pool: int = 40
+
+    # Raw Pinecone cosine-similarity floor on the single best dense match.
+    # RRF-fused scores can't tell "no good match" from "best of a bad lot" -
+    # a chunk still ranks #1 in a returned list even when nothing in the
+    # corpus is relevant - so this check happens before fusion. Tune using
+    # the retrieval scores logged per query in app/rag.py.
+    relevance_score_cutoff: float = 0.35
 
     ocr_enabled: bool = True
     ocr_model: str = ""
@@ -48,10 +61,13 @@ class Settings(BaseSettings):
 
     @property
     def postgres_url(self) -> str:
-        return (
+        url = (
             f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+        if self.postgres_sslmode:
+            url += f"?sslmode={self.postgres_sslmode}&channel_binding=require"
+        return url
 
 
 settings = Settings()

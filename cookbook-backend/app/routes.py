@@ -7,10 +7,11 @@ from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlmodel import select
 
+from app.agent.agent import run_agent
 from app.database import ChatLog, DocumentRecord, SessionDep
 from app.keyword import delete_chunks_by_source as delete_keyword_chunks
 from app.loader import SUPPORTED_EXTENSIONS, UnsupportedDocumentError
-from app.rag import NO_RELEVANT_ANSWER, answer_question, ingest_directory, ingest_file
+from app.rag import NO_RELEVANT_ANSWER, ingest_directory, ingest_file
 from app.vectorstore import delete_chunks_by_source
 
 router = APIRouter(tags=["rag"])
@@ -50,11 +51,12 @@ class DeleteDocumentResponse(BaseModel):
 @router.post("/query")
 def query(request: QuestionRequest, session: SessionDep) -> QuestionResponse:
     has_documents = session.exec(select(DocumentRecord.id).limit(1)).first() is not None
+    session.commit()  # release the transaction before the slow LLM call, not just after it
     if not has_documents:
         return QuestionResponse(answer=NO_RELEVANT_ANSWER, sources=[])
 
     try:
-        result = answer_question(request.question)
+        result = run_agent(request.question)
     except Exception:
         logger.exception("Cookbook query failed")
         raise HTTPException(
@@ -69,7 +71,7 @@ def query(request: QuestionRequest, session: SessionDep) -> QuestionResponse:
         )
     )
     session.commit()
-    return QuestionResponse(**result)
+    return QuestionResponse(answer=result["answer"], sources=result["sources"])
 
 
 @router.post("/ingest")

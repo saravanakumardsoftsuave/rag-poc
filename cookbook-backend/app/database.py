@@ -35,3 +35,15 @@ def get_session() -> Generator[Session, None, None]:
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
+
+
+def get_document_by_id(document_id: str) -> DocumentRecord | None:
+    """Look up one document's metadata outside of a request's injected
+    session - used by the agent's get_document_details tool, which runs
+    independently of any FastAPI request lifecycle."""
+    try:
+        record_id = int(document_id)
+    except ValueError:
+        return None
+    with Session(engine) as session:
+        return session.get(DocumentRecord, record_id)

@@ -51,7 +51,10 @@ def transcribe(data: bytes, mime_type: str) -> str:
             types.Part.from_bytes(data=data, mime_type=mime_type),
             PROMPT,
         ],
-        config=types.GenerateContentConfig(max_output_tokens=settings.ocr_max_output_tokens),
+        config=types.GenerateContentConfig(
+            max_output_tokens=settings.ocr_max_output_tokens,
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+        ),
     )
     text = (response.text or "").strip()
     logger.info("Transcribed %s (%d bytes) into %d chars", mime_type, len(data), len(text))
