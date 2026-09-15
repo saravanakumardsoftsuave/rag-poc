@@ -5,6 +5,8 @@ limit stops it (see safety.py). Tools are defined in tools.py.
 
 import logging
 
+from app.agent.intent import detect_allergen_target, detect_diet, detect_substitution_target, mentions_allergen_intent
+from app.agent.prompt_injection import guard_answer_output
 from app.agent.safety import check_safety_limits, is_repeated_action, stable_arguments_key
 from app.agent.state import AgentState
 from app.agent.tools import TOOLS, TOOLS_BY_NAME
@@ -189,6 +191,9 @@ def _finalize_answer(state: AgentState) -> dict:
     prompt = FINAL_ANSWER_PROMPT.format(question=state.user_query, results=results)
     answer = generate_answer(prompt)
     state.total_tokens += count_tokens(prompt) + count_tokens(answer)
+    # Bonus challenge (evals/prompt_injection/): last-resort scan for a
+    # dangerous directive that survived tools.py's chunk sanitization.
+    answer = guard_answer_output(answer)
     sources = sorted({chunk["source"] for chunk in state.chunks.values() if chunk.get("source")})
     logger.info("[AGENT] Stopping: goal_completed")
     return {
@@ -201,31 +206,91 @@ def _finalize_answer(state: AgentState) -> dict:
     }
 
 
-def run_agent(question: str) -> dict:
+# Toggled off by evals/run_mitigation_experiment.py to reproduce the
+# pre-mitigation "tool bypass" behavior for its before/after comparison.
+# Never turned off in production - see _forced_grounding_call.
+GROUNDING_GUARD_ENABLED = True
+
+
+def _forced_grounding_call(state: AgentState) -> tuple[str, str] | None:
+    """Guard against the agent answering a substitution/allergen question
+    from its own pretrained knowledge instead of the fixed lookup tables in
+    tools.py - a real observed failure mode (see evals/trajectory_eval.py's
+    "bypass_probe" case and GAP_ANALYSIS.md): the model already "knows" a
+    common substitute (e.g. margarine for butter), so it answers directly
+    and skips substitute_ingredient/get_allergen_profile entirely. That
+    produces a right-answer-wrong-path trace - fine by luck here, but the
+    tables exist precisely because the model's own knowledge can't be
+    trusted for every ingredient/diet pair, and a skipped call never gets
+    checked against them.
+
+    Deterministic, not another LLM decision: if the question names a diet or
+    allergen concern and an ingredient this session's tables actually cover,
+    and the matching tool hasn't been called yet, force that one call before
+    "answer" is allowed to finalize. If no covered ingredient is named (nothing
+    to force a specific lookup for), this returns None and the model's own
+    judgment decides what to do next - it is a targeted guardrail for a
+    known bypass pattern, not a blanket ban on answering without every tool
+    having run once.
+    """
+    if not GROUNDING_GUARD_ENABLED:
+        return None
+
+    called_tools = {tool for tool, _arguments in state.previous_actions}
+
+    diet = detect_diet(state.user_query)
+    if diet and "substitute_ingredient" not in called_tools:
+        ingredient = detect_substitution_target(state.user_query)
+        if ingredient:
+            return "substitute_ingredient", f"{ingredient}, {diet}"
+
+    if mentions_allergen_intent(state.user_query) and "get_allergen_profile" not in called_tools:
+        ingredient = detect_allergen_target(state.user_query)
+        if ingredient:
+            return "get_allergen_profile", ingredient
+
+    return None
+
+
+def run_agent_with_state(question: str) -> tuple[dict, AgentState]:
     """Understand the goal, decide/select/execute tools, observe results,
     update state, and repeat until the goal is complete or a safety limit
     ends the attempt. Never generates an answer except through
-    _finalize_answer, which only runs once the relevance cutoff is met."""
+    _finalize_answer, which only runs once the relevance cutoff is met.
+
+    Returns the same result dict as run_agent() plus the AgentState itself,
+    so callers that need the full step-by-step trace (evals/trajectory_eval.py,
+    evals/metrics.py) don't have to re-run the agent or parse the summary
+    dict back into a trajectory."""
     state = AgentState(user_query=question)
     action, argument = "search_knowledge_base", question  # first move is always to search
 
     while True:
         stop_reason = check_safety_limits(state)
         if stop_reason:
-            return _insufficient_evidence(state, stop_reason)
+            return _insufficient_evidence(state, stop_reason), state
 
         logger.info("[AGENT] Step %d", len(state.steps) + 1)
 
         if action == "answer":
             logger.info("[AGENT] Evaluating whether to answer now...")
             if state.best_relevance_score >= settings.relevance_score_cutoff:
-                return _finalize_answer(state)
-            logger.info("[AGENT] Evidence sufficient: False - answer requested too early")
-            return _insufficient_evidence(state, "insufficient_evidence")
+                forced = _forced_grounding_call(state)
+                if forced is not None:
+                    logger.info("[AGENT] Grounding guard: forcing %s before answering", forced[0])
+                    action, argument = forced
+                else:
+                    return _finalize_answer(state), state
+            else:
+                logger.info("[AGENT] Evidence sufficient: False - answer requested too early")
+                return _insufficient_evidence(state, "insufficient_evidence"), state
 
         if action == "give_up":
-            return _insufficient_evidence(state, "give_up")
+            return _insufficient_evidence(state, "give_up"), state
 
+        # action is now always a tool name: either it always was (search/
+        # substitute/allergen), or the "answer" branch above just reassigned
+        # it to the grounding guard's forced call.
         _execute_tool(state, action, argument)
         if state.stop_reason == "repeated_action" and state.best_relevance_score >= settings.relevance_score_cutoff:
             # The model re-issued a call it already made instead of picking
@@ -234,9 +299,9 @@ def run_agent(question: str) -> dict:
             # the win instead of reporting insufficient evidence.
             logger.info("[AGENT] Repeated action, but evidence is already sufficient - answering instead of stopping")
             state.stop_reason = None
-            return _finalize_answer(state)
+            return _finalize_answer(state), state
         if state.stop_reason:
-            return _insufficient_evidence(state, state.stop_reason)
+            return _insufficient_evidence(state, state.stop_reason), state
 
         sufficient = state.best_relevance_score >= settings.relevance_score_cutoff
         logger.info("[AGENT] Evaluating %s result...", action)

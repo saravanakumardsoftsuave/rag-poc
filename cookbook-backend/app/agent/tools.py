@@ -12,6 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
+from app.agent.prompt_injection import sanitize_chunk_text
 from app.retrieval import hybrid_search
 
 
@@ -54,7 +55,15 @@ def _search_knowledge_base(query: str) -> dict:
     matches, best_score = hybrid_search(query)
     return {
         "chunks": [
-            {"id": match.get("id"), "source": match["source"], "text": match["text"]}
+            {
+                "id": match.get("id"),
+                "source": match["source"],
+                # Bonus challenge (evals/prompt_injection/): a chunk is
+                # third-party document content, not a trusted instruction
+                # source - strip anything instruction-shaped before it can
+                # reach the final-answer prompt.
+                "text": sanitize_chunk_text(match["text"]),
+            }
             for match in matches
         ],
         "best_relevance_score": best_score,
