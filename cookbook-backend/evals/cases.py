@@ -140,10 +140,12 @@ CASES: list[TrajectoryCase] = [
         expected_facts="A vegan substitute for butter is margarine or coconut oil.",
         notes=(
             "THE case this suite is built to expose (see GAP_ANALYSIS.md): no recipe is named, "
-            "and 'margarine or coconut oil' is common enough that a small instruct model may "
-            "just answer it from pretrained memory without ever calling substitute_ingredient. "
-            "Outcome-correct either way; trajectory-correct only if the fixed table was actually "
-            "consulted. This is the query the mitigation (agent.py's grounding guard) targets."
+            "so nothing stops the agent from answering from pretrained memory without ever "
+            "calling substitute_ingredient. Hypothesized as a right-answer-wrong-path risk; "
+            "empirically it was worse than that - the pre-mitigation run recommended 'ghee' "
+            "(dairy, not vegan) here, contradicting the fixed table's real answer. Trajectory-"
+            "correct only if the table was actually consulted. This is the query the mitigation "
+            "(agent.py's grounding guard) targets."
         ),
     ),
     TrajectoryCase(
