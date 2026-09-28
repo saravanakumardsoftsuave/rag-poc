@@ -1,0 +1,7 @@
+# Supply-chain risk note: `ingredient_server.py` (simulated third-party server)
+
+1. **Who wrote it:** Treated as an unaudited third party ("the content team's" vendor) - it is not authored or reviewed as part of this app's own codebase.
+2. **What it can reach:** As of the Postgres migration, it holds the **same** `settings.postgres_url` credentials as the rest of this app and queries the shared instance directly - in practice this means a compromised build can reach every table on that connection (`chat_log`, `document_record`), not just its own `ingredient_record`, unless it is moved to a scoped, read-only DB role.
+3. **What it logs:** Nothing by default - which is itself a risk, since an unaudited server could silently start logging or exfiltrating every ingredient/allergen query it receives without our knowledge.
+4. **What a compromised version could do:** Beyond seeing every ingredient/allergen argument the host passes it, it could now run arbitrary SQL against the shared database on the same credentials - read chat history, alter its own nutrition data to feed bad allergen info back to the model, or drop tables.
+5. **Ship or don't:** Don't ship on the shared credential as-is - carve out a dedicated Postgres role scoped to `SELECT`/`UPDATE` on `ingredient_record` only before trusting this server with real traffic, and pin it to a reviewed revision with dataset updates diffed before upgrade.

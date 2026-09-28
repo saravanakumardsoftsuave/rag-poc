@@ -3,19 +3,22 @@ import shutil
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlmodel import select
 
-from app.agent.agent import run_agent
+from app.agent.core.budgets import Budgets
+from app.agent.core.loop import run_agentic_loop
 from app.database import ChatLog, DocumentRecord, SessionDep
 from app.keyword import delete_chunks_by_source as delete_keyword_chunks
 from app.loader import SUPPORTED_EXTENSIONS, UnsupportedDocumentError
-from app.rag import NO_RELEVANT_ANSWER, ingest_directory, ingest_file
+from app.rag import ingest_directory, ingest_file
 from app.vectorstore import delete_chunks_by_source
 
 router = APIRouter(tags=["rag"])
 logger = logging.getLogger(__name__)
+
+DEFAULT_BUDGETS = Budgets(max_iterations=6, max_tokens=6000, max_cost_usd=0.05, timeout_s=90.0)
 
 
 class QuestionRequest(BaseModel):
@@ -49,29 +52,28 @@ class DeleteDocumentResponse(BaseModel):
 
 
 @router.post("/query")
-def query(request: QuestionRequest, session: SessionDep) -> QuestionResponse:
-    has_documents = session.exec(select(DocumentRecord.id).limit(1)).first() is not None
-    session.commit()  # release the transaction before the slow LLM call, not just after it
-    if not has_documents:
-        return QuestionResponse(answer=NO_RELEVANT_ANSWER, sources=[])
-
+async def query(request: Request, body: QuestionRequest, session: SessionDep) -> QuestionResponse:
     try:
-        result = run_agent(request.question)
+        loop_result = await run_agentic_loop(body.question, request.app.state.tool_registry, DEFAULT_BUDGETS)
     except Exception:
         logger.exception("Cookbook query failed")
         raise HTTPException(
             status_code=503,
             detail="The cookbook search service is temporarily unavailable. Please try again shortly.",
         ) from None
-    session.add(
-        ChatLog(
-            question=request.question,
-            answer=result["answer"],
-            source_documents=",".join(result["sources"]),
-        )
-    )
+
+    if loop_result["status"] == "ok":
+        answer, sources = loop_result["answer"], loop_result["sources"]
+    elif loop_result["status"] == "budget_exceeded":
+        logger.warning("query hit budget %s for question=%r", loop_result["budget"], body.question)
+        answer, sources = "That request needed more steps than I'm allowed to take. Please try rephrasing it.", []
+    else:
+        logger.warning("query failed (%s) for question=%r", loop_result.get("reason"), body.question)
+        answer, sources = "I wasn't able to work out an answer to that. Please try rephrasing it.", []
+
+    session.add(ChatLog(question=body.question, answer=answer, source_documents=",".join(sources)))
     session.commit()
-    return QuestionResponse(answer=result["answer"], sources=result["sources"])
+    return QuestionResponse(answer=answer, sources=sources)
 
 
 @router.post("/ingest")

@@ -1,0 +1,11 @@
+system,request_id,passed,latency_ms,tokens_total,cost_usd
+workflow,R1,True,295112.9,903,0.00181
+workflow,R2,True,96920.0,413,0.00083
+workflow,R3,True,91370.5,419,0.00084
+workflow,R4,True,90227.2,297,0.00059
+workflow,R5,True,123017.6,251,0.0005
+workflow,R6,False,202657.0,789,0.00158
+workflow,R7,True,216008.1,835,0.00167
+workflow,R8,True,400673.4,835,0.00167
+workflow,R9,False,270658.9,0,0.0
+workflow,R10,True,106565.8,390,0.00078

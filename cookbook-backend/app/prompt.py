@@ -43,3 +43,32 @@ RAG_SYSTEM_PROMPT = (
 def build_prompt(question: str, context_chunks: list[str]) -> str:
     context = "\n\n".join(context_chunks)
     return f"{RAG_SYSTEM_PROMPT}\n\nCookbook context:\n{context}\n\nQuestion: {question}\nAnswer:"
+
+
+GENERAL_SYSTEM_PROMPT = (
+    "You are Cookbook AI, a friendly cooking assistant. Reply briefly and warmly.\n"
+    "You don't have any cookbook context loaded for this reply, so don't invent "
+    "recipe details - if the question actually needs a specific recipe, say you'd "
+    "need to look it up in the uploaded cookbooks instead of guessing.\n"
+)
+
+
+def build_general_prompt(question: str) -> str:
+    return f"{GENERAL_SYSTEM_PROMPT}\n\nQuestion: {question}\nAnswer:"
+
+
+RECIPE_EXTRACTION_PROMPT = (
+    "Extract ONE recipe from the cookbook text below as strict JSON, with exactly "
+    "these keys: recipe_name (string), servings (integer, the base servings the "
+    "recipe as written serves), ingredients (a list of objects with keys name, "
+    "quantity (number), unit (string, may be empty)), method (a list of strings, "
+    "one per step). Use only what the text states - never invent an ingredient, "
+    "quantity, or step. Output ONLY the JSON object, no other text.\n"
+)
+
+
+def build_recipe_extraction_prompt(query: str, context: str) -> str:
+    return (
+        f"{RECIPE_EXTRACTION_PROMPT}\n\nCookbook text:\n{context}\n\n"
+        f"Requested recipe: {query}\nJSON:"
+    )

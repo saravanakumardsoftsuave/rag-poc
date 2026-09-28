@@ -28,13 +28,6 @@ def get_generator():
     return _generator
 
 
-def count_tokens(text: str) -> int:
-    """Token count via the generation model's own tokenizer - used for the
-    agent/workflow's token budget and benchmark reporting, not billing (this
-    model runs locally; there's no per-token cost to meter)."""
-    return len(get_generator().tokenizer(text)["input_ids"])
-
-
 def generate_answer(prompt: str) -> str:
     output = get_generator()(
         [{"role": "user", "content": prompt}],

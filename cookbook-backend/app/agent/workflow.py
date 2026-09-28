@@ -1,117 +1,101 @@
-"""A fixed, non-agentic pipeline: same model, same tools, same output shape
-as run_agent() (see agent.py) - but every step is hardcoded instead of an
-LLM deciding what to do next. Exists only to benchmark against the agent
-(see benchmark.py): does answering these questions actually need a decision
-loop, or does a fixed sequence of steps get the same results for less cost?
-
-Because every step here is a fixed rule, this pipeline can only chain step 2
-into step 3 when the substitution/allergen target is *named in the
-question itself* - it has no way to read step 2's search result and decide
-what "it" or "that ingredient" refers to. That's not a bug to fix; it's the
-actual limitation a fixed pipeline has that an agent doesn't, and is exactly
-what the benchmark is designed to surface.
+"""Fixed workflow twin of the recipe-adaptation agent (W7 requirement 2):
+hard-coded steps, the SAME tool implementations, the SAME model for the final
+phrasing, the SAME output contract - no LLM decides what happens next. Used
+only by the eval race (evals/race.py), not by the live app.
 """
 
-import logging
-import re
-
-from app.agent.tools import Diet, TOOLS_BY_NAME
-from app.config import settings
-from app.rag import count_tokens, generate_answer
-
-logger = logging.getLogger(__name__)
-
-INSUFFICIENT_EVIDENCE_ANSWER = (
-    "I couldn't find sufficient evidence in the available knowledge base to "
-    "answer this question."
-)
-
-FINAL_ANSWER_PROMPT = (
-    "Answer the user's question using only the information returned by the "
-    "tools below. Never invent details the tools did not return. If the "
-    "tools didn't actually return enough to answer, say so plainly.\n\n"
-    "Question: {question}\n\n"
-    "Tool results:\n{results}\n\n"
-    "Answer:"
-)
-
-_DIET_VALUES = [diet.value for diet in Diet]
-_SUBSTITUTION_RE = re.compile(
-    r"(?:substitute|alternative|replacement)s?\s+for\s+([a-zA-Z ]+?)(?:[.?!]|$)",
-    re.IGNORECASE,
-)
-_ALLERGEN_TRIGGER_RE = re.compile(r"\ballerg", re.IGNORECASE)
-_ALLERGEN_INGREDIENT_RE = re.compile(
-    r"\ballergens?\s+(?:in|of)\s+([a-zA-Z ]+?)(?:[.?!]|$)",
-    re.IGNORECASE,
-)
+from app.agent.tools.recipe_tools import get_nutrition, search_recipes, substitute_ingredient
+from app.prompt import build_general_prompt
+from app.rag import generate_answer
 
 
-def _detect_diet(question: str) -> str | None:
-    lowered = question.lower()
-    return next((diet for diet in _DIET_VALUES if diet in lowered), None)
-
-
-def _fixed_step_2(question: str) -> tuple[str, str] | None:
-    """The hardcoded rule for whether/which tool to call after search.
-    Only fires when the target ingredient is spelled out in the question."""
-    diet = _detect_diet(question)
-    if diet:
-        match = _SUBSTITUTION_RE.search(question)
-        if match:
-            return "substitute_ingredient", f"{match.group(1).strip()}, {diet}"
-        return None
-    if _ALLERGEN_TRIGGER_RE.search(question):
-        match = _ALLERGEN_INGREDIENT_RE.search(question)
-        if match:
-            return "get_allergen_profile", match.group(1).strip()
-    return None
-
-
-def run_workflow(question: str) -> dict:
-    """Step 1: always search. Step 2: a fixed regex rule, not an LLM,
-    decides whether to also call substitute_ingredient/get_allergen_profile.
-    Step 3: answer from whatever was found - same prompt, same model as the
-    agent's _finalize_answer."""
-    tool_results = []
-
-    logger.info("[WORKFLOW] Step 1: search_knowledge_base")
-    search_result = TOOLS_BY_NAME["search_knowledge_base"].invoke(question)
-    tool_results.append({"tool": "search_knowledge_base", "arguments": {"query": question}, "result": search_result})
-    best_score = search_result.get("best_relevance_score", 0.0)
-    logger.info("[WORKFLOW] Evidence sufficient: %s", best_score >= settings.relevance_score_cutoff)
-
-    if best_score < settings.relevance_score_cutoff:
-        logger.info("[WORKFLOW] Stopping: insufficient_evidence")
+def run_fixed_workflow(recipe_query: str, requested_servings: int, exclude_allergens: list[str],
+                        diet: str = "none") -> dict:
+    recipe = search_recipes(recipe_query)
+    if not recipe.get("found"):
         return {
-            "answer": INSUFFICIENT_EVIDENCE_ANSWER,
+            "recipe_name": None, "requested_servings": requested_servings, "scaled_ingredients": [],
+            "method": [], "substitutions_made": [], "warnings": [recipe.get("message", "Recipe not found.")],
             "sources": [],
-            "stop_reason": "insufficient_evidence",
-            "total_tokens": 0,
-            "tool_calls": 1,
-            "steps": 1,
         }
 
-    step_2 = _fixed_step_2(question)
-    if step_2:
-        tool_name, argument = step_2
-        logger.info("[WORKFLOW] Step 2 (fixed rule matched): %s(%s)", tool_name, argument)
-        result = TOOLS_BY_NAME[tool_name].invoke(argument)
-        tool_results.append({"tool": tool_name, "arguments": {"input": argument}, "result": result})
-    else:
-        logger.info("[WORKFLOW] Step 2: no fixed rule matched, skipping")
+    base_servings = recipe.get("servings") or requested_servings
+    ratio = requested_servings / base_servings if base_servings else 1.0
 
-    results_text = "\n\n".join(f"{entry['tool']}({entry['arguments']}) ->\n{entry['result']}" for entry in tool_results)
-    prompt = FINAL_ANSWER_PROMPT.format(question=question, results=results_text)
-    answer = generate_answer(prompt)
-    total_tokens = count_tokens(prompt) + count_tokens(answer)
-    sources = sorted({chunk["source"] for chunk in search_result.get("chunks", []) if chunk.get("source")})
-    logger.info("[WORKFLOW] Stopping: goal_completed")
+    scaled_ingredients = []
+    substitutions_made = []
+    warnings = []
+
+    for ingredient in recipe.get("ingredients", []):
+        name = ingredient.get("name", "")
+        unit = ingredient.get("unit", "")
+        try:
+            scaled_quantity = round(float(ingredient.get("quantity", 0)) * ratio, 3)
+        except (TypeError, ValueError):
+            # non-numeric quantities ("a pinch", "to taste") are carried through unscaled
+            scaled_quantity = ingredient.get("quantity", "")
+
+        nutrition = get_nutrition(name)
+        conflicting_tags = [t for t in nutrition.get("allergen_tags", []) if t in exclude_allergens]
+        final_name = name
+
+        if conflicting_tags:
+            # First pass: substitute against only the tag(s) this specific
+            # ingredient itself triggered.
+            sub = substitute_ingredient(name, exclude_allergens=conflicting_tags, diet=diet)
+            passes = 1
+            current = sub
+            # Bounded (compile-time, not LLM-decided) retry: if the accepted
+            # substitute itself still conflicts with the FULL exclude list,
+            # substitute it again. This is the cascading case from the spec.
+            while (
+                passes < 2
+                and current.get("found")
+                and set(current.get("substitute_allergen_tags", [])) & set(exclude_allergens)
+            ):
+                current = substitute_ingredient(current["substitute"], exclude_allergens=exclude_allergens, diet=diet)
+                passes += 1
+
+            if current.get("found"):
+                final_name = current["substitute"]
+                substitutions_made.append({
+                    "from": name, "to": final_name, "reason": f"avoids {conflicting_tags}",
+                    "passes": passes,
+                })
+            else:
+                warnings.append(f"Could not find a safe substitute for '{name}'.")
+
+        scaled_ingredients.append({
+            "name": final_name, "quantity": scaled_quantity, "unit": unit,
+            "substituted_from": name if final_name != name else None,
+        })
+
     return {
-        "answer": answer,
-        "sources": sources,
-        "stop_reason": "goal_completed",
-        "total_tokens": total_tokens,
-        "tool_calls": len(tool_results),
-        "steps": len(tool_results),
+        "recipe_name": recipe.get("recipe_name"),
+        "requested_servings": requested_servings,
+        "scaled_ingredients": scaled_ingredients,
+        "method": recipe.get("method", []),
+        "substitutions_made": substitutions_made,
+        "warnings": warnings,
+        "sources": recipe.get("sources", []),
     }
+
+
+def phrase_workflow_result(result: dict) -> str:
+    """One fixed generate_answer call to phrase the assembled result as
+    prose - same model, same call shape the agent uses for its FINAL answer."""
+    summary_lines = [
+        f"Recipe: {result['recipe_name']}",
+        f"Servings requested: {result['requested_servings']}",
+        "Ingredients: " + "; ".join(
+            f"{i['quantity']} {i['unit']} {i['name']}" + (f" (was {i['substituted_from']})" if i["substituted_from"] else "")
+            for i in result["scaled_ingredients"]
+        ),
+        "Method: " + " ".join(result["method"]),
+    ]
+    if result["warnings"]:
+        summary_lines.append("Warnings: " + "; ".join(result["warnings"]))
+    prompt = build_general_prompt(
+        "Phrase this adapted recipe naturally for the user:\n" + "\n".join(summary_lines)
+    )
+    return generate_answer(prompt)

@@ -14,5 +14,9 @@ xlrd>=2.0
 olefile>=0.47
 python-multipart>=0.0.9
 
+# Pinned, not >= : mcp 2.x renamed FastMCP -> MCPServer and reworked the wire
+# format; this codebase targets the 1.x FastMCP API most current docs use.
+mcp==1.30.0
+
 # dev / test only
 pytest>=8.0

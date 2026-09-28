@@ -1,0 +1,24 @@
+app/agent/__init__.py
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 *app/agent/__init__.py
+app/agent/core/__init__.py
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 *app/agent/core/__init__.py
+app/agent/core/budgets.py
+5cab564e28cad937316535b28bf4db997ae44ee1c97f3de1d6bea383ced80da8 *app/agent/core/budgets.py
+app/agent/core/loop.py
+8c95bd2c3a61fe6f3860fdd7b1fcbe073fd1a3e775f390909098f21aac26d82b *app/agent/core/loop.py
+app/agent/core/mcp_adapter.py
+31f43487657cf131674e4e0aa307abbe6d8781252681393c68c34b563373bd4f *app/agent/core/mcp_adapter.py
+app/agent/core/registry.py
+3cc7348032026f07e3aaba56c88a5c79e90525e58a714f75055d20b83b77e6ea *app/agent/core/registry.py
+app/agent/tools/__init__.py
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 *app/agent/tools/__init__.py
+app/agent/tools/chat_tools.py
+79ed474c8b6c3db6041ff8e4f6b1484df1b4e41fcfb2b80d9c59fc837ab1f4c6 *app/agent/tools/chat_tools.py
+app/agent/tools/nutrition_data.py
+63469237f095fb2489bb5112bac91eaf211a15449ca56838b44659c5dcfb062a *app/agent/tools/nutrition_data.py
+app/agent/tools/recipe_tools.py
+0dcf1eb6e30be283a7ce85a0a206e0467eb8531f1493d4d87d4462e4877a4cde *app/agent/tools/recipe_tools.py
+app/agent/tools/substitution_map.py
+3cf841958ad67368cdc97959558f7c45a6c6ee3c98057c1cf8a4d313934f6f3a *app/agent/tools/substitution_map.py
+app/agent/workflow.py
+e470eb26f50c0b71617ca09b058cbf2185c0797192bb190cac5d0c1eaec5092e *app/agent/workflow.py

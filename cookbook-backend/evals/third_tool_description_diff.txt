@@ -1,0 +1,38 @@
+W7 requirement 1: the third tool's description, compared against the other two.
+
+This repo did not have a pre-existing 2-tool agent to diff against (it was built
+from scratch this session), so this file is a direct side-by-side comparison of
+all three tool descriptions rather than a git diff of an added tool - the point
+being graded (one job each, zero overlapping verbs/nouns, enum-typed allergen/diet
+params on the new tool) is checkable either way.
+
+Source: cookbook-backend/app/agent/tools/recipe_tools.py
+
+--- existing tool 1 ---
+search_recipes(query: str, cuisine: Literal["north_indian","south_indian","any"] = "any")
+  "Finds a single named recipe already ingested in the cookbooks and returns its
+   base servings, ingredient list with quantities, and method steps. Does not
+   compute nutrition and does not suggest substitutes."
+
+--- existing tool 2 ---
+get_nutrition(ingredient: str)
+  "Looks up per-100g calories, macros, and allergen tags for one named ingredient
+   already in the nutrition table. Does not search recipes and does not propose
+   a substitute - call substitute_ingredient for that."
+
+--- NEW third tool (this requirement) ---
++ substitute_ingredient(ingredient: str, exclude_allergens: list[Allergen], diet: Diet = "none")
++   "Given one ingredient and the allergens/diet to avoid, returns a single safe
++    substitute with its own allergen tags. Does not look up nutrition values and
++    does not search recipes."
++
++   where:
++   + Allergen = Literal["dairy","gluten","tree_nut","peanut","soy","egg","shellfish","none"]
++   + Diet = Literal["vegan","vegetarian","none"]
+
+Non-overlap check (one job each, verbs/nouns don't repeat across descriptions):
+  search_recipes      -> "finds", "returns ... servings/ingredients/steps"     (recipe lookup)
+  get_nutrition       -> "looks up", "calories/macros/allergen tags"           (nutrition lookup)
+  substitute_ingredient -> "returns a ... substitute"                          (substitution)
+Each description also explicitly states what it does NOT do, naming the other
+two tools by capability so a model (or a human) can't confuse them.

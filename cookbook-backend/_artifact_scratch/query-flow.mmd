@@ -1,0 +1,27 @@
+flowchart TD
+    Q["POST /query\n{ question }"] --> LOOP["run_agentic_loop()\napp/agent/core/loop.py"]
+
+    subgraph startup["Once, at FastAPI startup"]
+      direction LR
+      CFG["config/mcp_servers.json"] -->|"read"| ADAPT["build_mcp_registry()"]
+      ADAPT -->|"stdio: initialize + tools/list"| RS["recipe_server.py"]
+      ADAPT -->|"stdio: initialize + tools/list"| IS["ingredient_server.py"]
+      ADAPT --> REG[("ToolRegistry\n7 tools on app.state")]
+    end
+
+    REG -.->|"injected"| LOOP
+
+    LOOP --> BUDGET{"budget check\niterations / tokens / cost / clock"}
+    BUDGET -->|"exceeded"| STOP["budget_exceeded\nclean partial answer, logged"]
+    BUDGET -->|"ok"| PROMPT["build turn prompt\ntools + transcript so far"]
+    PROMPT -->|"generate_answer()"| LLM["local Qwen2.5-1.5B-Instruct"]
+    LLM --> PARSE{"parse one-line reply"}
+    PARSE -->|"TOOL: name ARGS: {..}"| CALL["tool.call(args)\nstdio call_tool on the right MCP server"]
+    CALL -->|"result appended"| BUDGET
+    PARSE -->|"FINAL: {answer, sources}"| DONE["status: ok"]
+    PARSE -->|"unparseable / unknown tool"| FAIL["status: failed\nclean, logged, never an exception"]
+
+    DONE --> RESP["{ answer, sources }"]
+    STOP --> RESP
+    FAIL --> RESP
+    RESP -.->|"row"| LOG[("Postgres\nchat_log")]

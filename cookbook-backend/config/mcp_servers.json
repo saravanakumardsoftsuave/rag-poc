@@ -1,0 +1,6 @@
+{
+  "servers": [
+    {"name": "recipe", "command": "python", "args": ["-m", "app.mcp_servers.recipe_server"], "env": {}},
+    {"name": "ingredient", "command": "python", "args": ["-m", "app.mcp_servers.ingredient_server"], "env": {}}
+  ]
+}

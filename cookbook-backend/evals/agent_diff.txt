@@ -1,0 +1,23 @@
+W9 requirement 2: proof that adding the ingredient_server (server two) to the
+MCP config changed ZERO lines in app/agent/.
+
+Method: since this session did not create separate git commits for
+"server-one-only" vs "server-one-plus-two" (all app/agent/ work was done as
+one uncommitted body of work this session), the zero-diff claim is verified
+directly instead: a SHA-256 checksum of every .py file under app/agent/ was
+taken immediately before editing config/mcp_servers.json to add the
+"ingredient" server entry, and again immediately after. The two checksum
+listings are byte-identical.
+
+  $ find app/agent -name "*.py" -not -path "*__pycache__*" | sort | xargs sha256sum > before.txt
+  ... edit config/mcp_servers.json only (add one object to "servers") ...
+  $ find app/agent -name "*.py" -not -path "*__pycache__*" | sort | xargs sha256sum > after.txt
+  $ diff before.txt after.txt
+  (no output - 0 differences)
+
+This holds specifically because app/agent/core/loop.py (the agentic loop)
+only ever consumes a ToolRegistry built generically by
+app/agent/core/mcp_adapter.py from a real tools/list call - it has no
+hardcoded tool names, tool count, or server references anywhere in
+app/agent/. The full before/after checksum listings are saved alongside this
+file as _agent_snapshot_before.txt and _agent_snapshot_after.txt.

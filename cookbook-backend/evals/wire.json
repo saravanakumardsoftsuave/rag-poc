@@ -1,0 +1,135 @@
+{
+  "transport": "stdio, newline-delimited JSON-RPC 2.0 (no Content-Length framing)",
+  "model_call_location": "The model runs ONLY inside the host process (app/agent/core/loop.py), never inside ingredient_server.py - this server has zero imports of app.rag or any generation code, it only serves lookup_ingredient over its own static dataset.",
+  "field_annotations": {
+    "jsonrpc": "protocol version literal, always \"2.0\"",
+    "id": "correlates a response to its request; notifications (no id) get no reply",
+    "method": "the JSON-RPC method name: initialize, tools/list, or tools/call",
+    "params.protocolVersion": "MCP protocol version the client speaks",
+    "params.capabilities": "client-advertised capabilities (empty here - this script is a raw probe, not a full client)",
+    "params.clientInfo": "identifies the calling client for the server's logs",
+    "params.name": "(tools/call) which tool to invoke",
+    "params.arguments": "(tools/call) the tool's input arguments as a JSON object",
+    "result.tools": "(tools/list response) the array of {name, description, inputSchema} the server exposes",
+    "result.content": "(tools/call response) the tool's return value, wrapped as MCP content blocks"
+  },
+  "exchange": [
+    {
+      "direction": "client->server",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-06-18",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "wire-capture-script",
+            "version": "0.1"
+          }
+        }
+      }
+    },
+    {
+      "direction": "server->client",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-06-18",
+          "capabilities": {
+            "experimental": {},
+            "prompts": {
+              "listChanged": false
+            },
+            "resources": {
+              "subscribe": false,
+              "listChanged": false
+            },
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "ingredient-server",
+            "version": "1.30.0"
+          }
+        }
+      }
+    },
+    {
+      "direction": "client->server",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      }
+    },
+    {
+      "direction": "client->server",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        "params": {}
+      }
+    },
+    {
+      "direction": "server->client",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "tools": [
+            {
+              "name": "lookup_ingredient",
+              "description": "Looks up allergen flags and per-100g nutrition for one named ingredient\nin the third-party ingredient database. If no exact match, returns a\nsuggestion for the closest known ingredient name instead of a bare error.",
+              "inputSchema": {
+                "properties": {
+                  "name": {
+                    "title": "Name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "title": "lookup_ingredientArguments",
+                "type": "object"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "direction": "client->server",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "lookup_ingredient",
+          "arguments": {
+            "name": "paneer"
+          }
+        }
+      }
+    },
+    {
+      "direction": "server->client",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"found\": true,\n  \"matched_name\": \"paneer\",\n  \"suggestion\": null,\n  \"allergen_tags\": [\n    \"dairy\"\n  ],\n  \"calories_kcal_per_100g\": 265,\n  \"protein_g\": 18,\n  \"carbs_g\": 3,\n  \"fat_g\": 21,\n  \"message\": null\n}"
+            }
+          ],
+          "isError": false
+        }
+      }
+    }
+  ]
+}
