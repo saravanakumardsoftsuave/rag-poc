@@ -1,7 +1,9 @@
 # Verdict: KILL
 
-Sunk-cost bias named out loud first: the orchestrator took real, separate build effort this week (decomposition, two scoped workers, synthesis), which creates a pull to call it the winner regardless of the numbers just to justify that effort. Naming that before the verdict, not after.
+Sunk-cost bias named first: the orchestrator took real separate build effort (decomposition, two scoped workers, synthesis), which pulls toward calling it the winner regardless of the numbers to justify that effort — naming that before the verdict, not after.
 
-Cited numbers: pass rate 0% (single agent) vs 0% (orchestrator); total tokens 3567 (single agent) vs 17572 (orchestrator) - a 4.9x re-send multiplier for no pass-rate gain the numbers above can point to on their own.
+Cited numbers: pass rate 0% (single agent) vs 0% (orchestrator); total tokens 3567 vs 17572 — a 4.9x re-send multiplier for zero pass-rate gain.
 
-Verdict: KILL - kill the orchestrator for this task unless the pass-rate or latency numbers above show it clearly ahead; the token/cost multiplier alone is not worth paying without a matching quality or speed win.
+Beyond the four numbers: `failure_case.md` found synthesis fabricates confident allergen-safety claims ("made dairy-free", "no concerns about dairy, tree nuts, or gluten") in 7 of 9 allergen cases with zero verified data behind them — the normal-path default, not just the injected-failure case.
+
+Verdict: KILL. The token multiplier alone wouldn't be worth it without a matching quality win; the fabricated safety claims make it unsafe to ship regardless of cost, for a feature touching food allergens.
