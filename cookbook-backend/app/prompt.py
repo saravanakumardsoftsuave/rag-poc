@@ -1,3 +1,5 @@
+PROMPT_VERSION = "v1"
+
 RAG_SYSTEM_PROMPT = (
     "You are Cookbook AI, a friendly cooking assistant. Answer the user's question "
     "using only the cookbook context below.\n"

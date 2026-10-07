@@ -12,6 +12,7 @@ system in the W7 race, which is expected and reported honestly rather than
 hidden.
 """
 
+import ast
 import json
 import logging
 import re
@@ -59,9 +60,15 @@ def _extract_first_json(text: str) -> dict | None:
         elif ch == "}":
             depth -= 1
             if depth == 0:
+                candidate = text[start : i + 1]
                 try:
-                    return json.loads(text[start : i + 1])
+                    return json.loads(candidate)
                 except json.JSONDecodeError:
+                    pass
+                try:
+                    parsed = ast.literal_eval(candidate)
+                    return parsed if isinstance(parsed, dict) else None
+                except (ValueError, SyntaxError):
                     return None
     return None
 
